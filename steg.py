@@ -9,7 +9,7 @@ from PIL import Image
 
 
 class Steganography():
-    def __init__(self, encoding_bits=1, repeat=True, color_bits=8, key='password'):
+    def __init__(self, encoding_bits=1, repeat=True, color_bits=8):
         # (color_bits / encoding_bits) must be an integer
         assert color_bits/encoding_bits == int(color_bits/encoding_bits)
 
@@ -20,14 +20,6 @@ class Steganography():
         self.encoding_bits = encoding_bits
         self.encoding_mask = pow(2, encoding_bits) - 1
         self.color_bits = color_bits
-
-        # AES settings
-        self.block_size = AES.block_size
-        self.key = self.set_key(key)
-
-
-    def set_key(self, key):
-        return hashlib.sha256(key.encode()).digest()
 
 
     def encode(self, img, msg):
@@ -96,6 +88,16 @@ class Steganography():
         return
 
 
+class AES_helper():
+    def __init__(self,  key='password'):
+        self.block_size = AES.block_size
+        self.key = self.set_key(key)
+
+
+    def set_key(self, key):
+        return hashlib.sha256(key.encode()).digest()
+
+
     def AES_encrypt(self, raw):
         raw = self._pad(raw)
         iv = Random.new().read(self.block_size)
@@ -113,20 +115,21 @@ class Steganography():
     def _pad(self, s):
         return s + (self.block_size - len(s) % self.block_size) * chr(self.block_size - len(s) % self.block_size)
 
+
     @staticmethod
     def _unpad(s):
         return s[:-ord(s[len(s)-1:])]
 
 
 
-
 if __name__=='__main__':
     # create class for encrypting
     k = 'super secret key'
-    steg = Steganography(key=k)
+    AES_help = AES_helper(key=k)
+    steg = Steganography()
 
-    # encrypt the message with AES
-    AES_encrypted = steg.AES_encrypt('top secret message')
+    # encrypt the message with AES\
+    AES_encrypted = AES_help.AES_encrypt('top secret message')
     AES_encrypted = 'encryption=AES, block_size=16, key={key}, message='.format(key=k) + AES_encrypted.decode('utf-8') + '; '
 
     # encode the picture with the text
@@ -140,8 +143,15 @@ if __name__=='__main__':
     # find the encoded message and key
     text = steg.decode(encoded_img)
     message = re.search('message=(.*); ', text[:150]).group(1)
-    steg.key = steg.set_key(re.search('key=(.*), message=', text[:150]).group(1))
+    AES_help.key = AES_help.set_key(re.search('key=(.*), message=', text[:150]).group(1))
 
     # decrypt the encrypted message
-    decrypted_message = steg.AES_decrypt(message)
+    decrypted_message = AES_help.AES_decrypt(message)
     print(decrypted_message)
+
+    '''
+    steg = Steganography()
+    im = np.array(Image.open('./LookAndYouShallSee.png'))
+    text = steg.decode(encoded_img)
+    print(text[:150])
+    '''
